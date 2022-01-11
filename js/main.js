@@ -29,7 +29,18 @@ g.append("text")
   .attr("font-size", "16px")
   .attr("text-anchor", "middle")
   .attr("transform", "rotate(-90)")
-  .text("Revenue");
+  .text("Revenue ($)");
+
+const x = d3.scaleBand().range([0, WIDTH]).paddingInner(0.3).paddingOuter(0.2);
+
+const y = d3.scaleLinear().range([HEIGHT, 0]);
+
+const xAxisGroup = g
+  .append("g")
+  .attr("class", "x axis")
+  .attr("transform", `translate(0, ${HEIGHT})`);
+
+const yAxisGroup = g.append("g").attr("class", "y axis");
 
 d3.csv("/data/revenues.csv")
   .then((data) => {
@@ -39,42 +50,54 @@ d3.csv("/data/revenues.csv")
       console.log(d);
     });
 
-    const x = d3
-      .scaleBand()
-      .domain(data.map((d) => d.month))
-      .range([0, WIDTH])
-      .paddingInner(0.3)
-      .paddingOuter(0.2);
+    d3.interval(() => {
+      update(data);
+    }, 1000);
 
-    const y = d3
-      .scaleLinear()
-      .domain([0, d3.max(data, (d) => d.revenue)])
-      .range([HEIGHT, 0]);
+    update(data);
 
-    const xAxisCall = d3.axisBottom(x);
-    g.append("g")
-      .attr("class", "x axis")
-      .attr("transform", `translate(0, ${HEIGHT})`)
-      .call(xAxisCall)
-      .selectAll("text")
-      .attr("y", "10")
-      .attr("x", "-5")
-      .attr("text-anchor", "end")
-      .attr("transform", "rotate(-40)");
+    function update(data) {
+      x.domain(data.map((d) => d.month));
+      y.domain([0, d3.max(data, (d) => d.revenue)]);
 
-    const yAxisCall = d3.axisLeft(y).tickFormat((d) => d + "m");
-    g.append("g").attr("class", "y axis").call(yAxisCall);
+      const xAxisCall = d3.axisBottom(x);
 
-    const recs = g.selectAll("rect").data(data);
+      xAxisGroup
+        .call(xAxisCall)
+        .selectAll("text")
+        .attr("y", "10")
+        .attr("x", "-5")
+        .attr("text-anchor", "end")
+        .attr("transform", "rotate(-40)");
 
-    recs
-      .enter()
-      .append("rect")
+      const yAxisCall = d3
+        .axisLeft(y)
+        .ticks(5)
+        .tickFormat((d) => d + "m");
+
+      yAxisGroup.call(yAxisCall);
+
+      // JOIN new data with old elements.
+      const recs = g.selectAll("rect").data(data);
+
+      // EXIT old elements not present in new data.
+      recs.exit().remove();
+
+      // UPDATE old elements present in new data.
+      recs
+        .attr("x", (d) => x(d.month))
+        .attr("y", (d) => y(d.revenue))
+        .attr("width", x.bandwidth)
+        .attr("height", (d) => HEIGHT - y(d.revenue));
+
+      // ENTER new elements present in new data.
+      recs.enter().append("rect")
       .attr("x", (d) => x(d.month))
       .attr("y", (d) => y(d.revenue))
       .attr("width", x.bandwidth)
       .attr("height", (d) => HEIGHT - y(d.revenue))
       .attr("fill", "grey");
+    }
   })
   .catch((err) => {
     console.log(err);
