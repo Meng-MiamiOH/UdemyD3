@@ -8,6 +8,8 @@ const svg = d3
   .attr("width", WIDTH + MARGIN.LEFT + MARGIN.RIGHT)
   .attr("height", HEIGHT + MARGIN.TOP + MARGIN.BOTTOM);
 
+let flag = true;
+
 const g = svg
   .append("g")
   .attr("transform", `translate(${MARGIN.LEFT * 2}, ${MARGIN.TOP})`);
@@ -22,14 +24,14 @@ g.append("text")
   .text("By Month");
 
 // Y label
-g.append("text")
+const yLabel = g
+  .append("text")
   .attr("class", "y axis-label")
   .attr("x", -(HEIGHT / 2))
   .attr("y", -60)
   .attr("font-size", "16px")
   .attr("text-anchor", "middle")
-  .attr("transform", "rotate(-90)")
-  .text("Revenue ($)");
+  .attr("transform", "rotate(-90)");
 
 const x = d3.scaleBand().range([0, WIDTH]).paddingInner(0.3).paddingOuter(0.2);
 
@@ -47,22 +49,28 @@ d3.csv("/data/revenues.csv")
     data.forEach((d) => {
       d.revenue = Number(d.revenue);
       d.profit = Number(d.profit);
-      console.log(d);
     });
+    console.log(data);
 
     d3.interval(() => {
-      update(data);
-    }, 1000);
+      flag = !flag;
+      const newData = flag ? data : data.slice(1);
+      update(newData);
+    }, 2000);
 
     update(data);
 
     function update(data) {
+      const value = flag ? "profit" : "revenue";
+      const t = d3.transition().duration(750);
+
       x.domain(data.map((d) => d.month));
-      y.domain([0, d3.max(data, (d) => d.revenue)]);
+      y.domain([0, d3.max(data, (d) => d[value])]);
 
       const xAxisCall = d3.axisBottom(x);
 
       xAxisGroup
+        .transition(t)
         .call(xAxisCall)
         .selectAll("text")
         .attr("y", "10")
@@ -74,29 +82,37 @@ d3.csv("/data/revenues.csv")
         .axisLeft(y)
         .ticks(5)
         .tickFormat((d) => d + "m");
-
-      yAxisGroup.call(yAxisCall);
+      yAxisGroup.transition(t).call(yAxisCall);
 
       // JOIN new data with old elements.
-      const recs = g.selectAll("rect").data(data);
+      const recs = g.selectAll("rect").data(data, d=> d.month);
 
       // EXIT old elements not present in new data.
-      recs.exit().remove();
-
-      // UPDATE old elements present in new data.
       recs
-        .attr("x", (d) => x(d.month))
-        .attr("y", (d) => y(d.revenue))
-        .attr("width", x.bandwidth)
-        .attr("height", (d) => HEIGHT - y(d.revenue));
+        .exit()
+        .attr("fill", "red")
+        .transition(t)
+        .attr("height", 0)
+        .attr("y", y(0))
+        .remove();
 
       // ENTER new elements present in new data.
-      recs.enter().append("rect")
-      .attr("x", (d) => x(d.month))
-      .attr("y", (d) => y(d.revenue))
-      .attr("width", x.bandwidth)
-      .attr("height", (d) => HEIGHT - y(d.revenue))
-      .attr("fill", "grey");
+      recs
+        .enter()
+        .append("rect")
+        .attr("y", y(0))
+        .attr("height", 0)
+        .attr("fill", "grey")
+        // UPDATE old elements present in new data.
+        .merge(recs)
+        .transition(t)
+        .attr("x", (d) => x(d.month))
+        .attr("y", (d) => y(d[value]))
+        .attr("width", x.bandwidth)
+        .attr("height", (d) => HEIGHT - y(d[value]));
+
+      const yText = flag ? "Profit ($)" : "Revenue ($)";
+      yLabel.text(yText);
     }
   })
   .catch((err) => {
