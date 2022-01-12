@@ -21,17 +21,17 @@ g.append("text")
   .attr("y", HEIGHT + 60)
   .attr("font-size", "16px")
   .attr("text-anchor", "middle")
-  .text("By Month");
+  .text("GDP-per-capita");
 
 // Y label
-const yLabel = g
-  .append("text")
+g.append("text")
   .attr("class", "y axis-label")
   .attr("x", -(HEIGHT / 2))
   .attr("y", -60)
   .attr("font-size", "16px")
   .attr("text-anchor", "middle")
-  .attr("transform", "rotate(-90)");
+  .attr("transform", "rotate(-90)")
+  .text("Life Expectancy");
 
 const x = d3.scaleBand().range([0, WIDTH]).paddingInner(0.3).paddingOuter(0.2);
 
@@ -44,24 +44,24 @@ const xAxisGroup = g
 
 const yAxisGroup = g.append("g").attr("class", "y axis");
 
-d3.csv("/data/revenues.csv")
+d3.json("/data/data.json")
   .then((data) => {
     data.forEach((d) => {
-      d.revenue = Number(d.revenue);
-      d.profit = Number(d.profit);
+      d.countries.forEach((c) => {
+        if (c.income === null) c.income = 0;
+        if (c.life_exp === null) c.life_exp = 0;
+      });
     });
+
     console.log(data);
 
-    d3.interval(() => {
-      flag = !flag;
-      const newData = flag ? data : data.slice(1);
-      update(newData);
-    }, 2000);
+    // d3.interval(() => {
+    //   update(data);
+    // }, 2000);
 
-    update(data);
+    // update(data);
 
     function update(data) {
-      const value = flag ? "profit" : "revenue";
       const t = d3.transition().duration(750);
 
       x.domain(data.map((d) => d.month));
@@ -85,34 +85,30 @@ d3.csv("/data/revenues.csv")
       yAxisGroup.transition(t).call(yAxisCall);
 
       // JOIN new data with old elements.
-      const recs = g.selectAll("rect").data(data, d=> d.month);
+      const recs = g.selectAll("circle").data(data, d=> d.month);
 
       // EXIT old elements not present in new data.
       recs
         .exit()
         .attr("fill", "red")
         .transition(t)
-        .attr("height", 0)
-        .attr("y", y(0))
+        .attr("cy", y(0))
         .remove();
 
       // ENTER new elements present in new data.
       recs
         .enter()
-        .append("rect")
-        .attr("y", y(0))
-        .attr("height", 0)
+        .append("circle")
+        .attr("cy", y(0))
+        .attr("r", 5)
         .attr("fill", "grey")
         // UPDATE old elements present in new data.
         .merge(recs)
         .transition(t)
-        .attr("x", (d) => x(d.month))
-        .attr("y", (d) => y(d[value]))
-        .attr("width", x.bandwidth)
-        .attr("height", (d) => HEIGHT - y(d[value]));
+        .attr("cx", (d) => x(d.month) + (x.bandwidth() / 2))
+        .attr("cy", (d) => y(d[value]))
 
-      const yText = flag ? "Profit ($)" : "Revenue ($)";
-      yLabel.text(yText);
+
     }
   })
   .catch((err) => {
