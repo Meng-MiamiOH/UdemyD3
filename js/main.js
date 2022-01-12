@@ -1,3 +1,4 @@
+// code from https://github.com/adamjanes/udemy-d3/blob/master/05/5.10.1/js/main.js
 const MARGIN = { LEFT: 100, RIGHT: 10, TOP: 10, BOTTOM: 100 };
 const WIDTH = 800 - MARGIN.LEFT - MARGIN.RIGHT;
 const HEIGHT = 500 - MARGIN.TOP - MARGIN.BOTTOM;
@@ -66,6 +67,32 @@ g.append("g")
 const yAxisCall = d3.axisLeft(y);
 g.append("g").attr("class", "y axis").call(yAxisCall);
 
+const continents = ["europe", "asia", "americas", "africa"];
+
+const legend = g
+  .append("g")
+  .attr("transform", `translate(${WIDTH - 100}, ${HEIGHT - 125})`);
+
+continents.forEach((continent, i) => {
+  const legendRow = legend
+    .append("g")
+    .attr("transform", `translate(0, ${i * 20})`);
+
+  legendRow
+    .append("rect")
+    .attr("width", 10)
+    .attr("height", 10)
+    .attr("fill", continentColor(continent));
+
+  legendRow
+    .append("text")
+    .attr("x", -10)
+    .attr("y", 10)
+    .attr("text-anchor", "end")
+    .style("text-transform", "capitalize")
+    .text(continent);
+});
+
 d3.json("/data/data.json")
   .then((data) => {
     // clean data
@@ -86,13 +113,13 @@ d3.json("/data/data.json")
       // at the end of our data, loop back
       time = time < 214 ? time + 1 : 0;
       update(formattedData[time]);
-    }, 2000);
+    }, 200);
 
     // first run of the visualization
     update(formattedData[0]);
 
     function update(data) {
-      const t = d3.transition().duration(100);
+      const t = d3.transition().duration(200);
 
       // JOIN new data with old elements.
       const circles = g.selectAll("circle").data(data, (d) => d.country);
